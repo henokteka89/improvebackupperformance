@@ -82,8 +82,10 @@ FROM sys.dm_exec_requests r
 WHERE r.command in ('BACKUP DATABASE','RESTORE DATABASE') 
 
 /*
-
---Disable trace flags to catch more info
+--Traceflag 3213, traces SQL Server activity during backup/restore
+--Traceflag 3605, output trace information to SQL Server Log
+---https://www.sqlservercentral.com/blogs/optimizing-sql-server-backup-and-restore (this is a MUST READ)
+--Enable trace flags to catch more info
 DBCC TRACEON (3213, -1)
 DBCC TRACEON (3605, -1)
 --Disable trace flags
@@ -109,4 +111,30 @@ In the Redo phase, all the committed transactions present in the transaction log
 In the Undo phase, all the uncommitted transactions in the transaction log while the database was being backed up are rolled back.
 If the database is being restored with NORECOVERY, the Undo phase is skipped.
 
-Unfortunately SQL Server does not show the progress during the Redo and Undo phases as it does in the Data Copy phase. So, depending upon the activity in the database at the time it was getting backed up will decide the overall total recovery time.
+Unfortunately, SQL Server does not show the progress during the Redo and Undo phases as it does in the Data Copy phase. So, depending upon the activity in the database at the time it was getting backed up will decide the overall total recovery time.
+
+---
+https://www.sqlservercentral.com/blogs/optimizing-sql-server-backup-and-restore
+Backup to multiple files (benefit)
+
+Another option to speed up backup’s is using multiple files to backup your database. When performing a backup to one file SQL Server will only use one CPU to perform that backup operation. 
+If you create multiple files SQL Server will use multiple CPU’s, one for every backup file. This can have a positive impact on your backup operation.
+---
+https://www.mssqltips.com/sqlservertip/2343/how-to-monitor-backup-and-restore-progress-in-sql-server/
+---This is the query I use to get Pct complete for either backup or restores:
+SELECT
+session_id as SPID,
+command,
+a.text AS Query,
+start_time,
+percent_complete,
+CAST(((DATEDIFF(s,start_time,GETDATE()))/3600) AS VARCHAR) + ' hour(s), '
++ CAST((DATEDIFF(s,start_time,GETDATE())%3600)/60 AS VARCHAR) + 'min, '
++ CAST((DATEDIFF(s,start_time,GETDATE())%60) AS VARCHAR) + ' sec' AS running_time,
+CAST((estimated_completion_time/3600000) AS VARCHAR) + ' hour(s), '
++ CAST((estimated_completion_time %3600000)/60000 AS VARCHAR) + 'min, '
++ CAST((estimated_completion_time %60000)/1000 as VARCHAR) + ' sec' AS est_time_to_go,
+DATEADD(SECOND,estimated_completion_time/1000, GETDATE()) AS estimated_completion_time
+FROM sys.dm_exec_requests r
+CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) a
+WHERE r.command IN ('BACKUP DATABASE','RESTORE DATABASE', 'BACKUP LOG','RESTORE LOG')
