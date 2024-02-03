@@ -97,3 +97,16 @@ declare @dtfromdate datetime = dateadd(hour, -1, getdate()),
 		@dttodate datetime = getdate()
 exec xp_readerrorlog 0,1,null,null, @dtfromdate, @dttodate
 /*
+
+https://www.mssqltips.com/sqlservertip/2343/how-to-monitor-backup-and-restore-progress-in-sql-server/
+SQL Restore Stuck at 100%
+I would like to touch base upon one aspect of SQL Server which you will encounter while restoring databases. You may see that the restore is stuck at 100% or around 99.99% and is not moving further. Sometimes for databases that are very large, TB size databases, it may even take 5 hours for the recovery to complete. To understand this situation we need to understand the different phases that a restore goes through.
+
+The three phases are Data Copy phase, Redo phase and Undo phase.
+
+While you may see the restore is 100% complete it's actually only the Data Copy phase that is complete and then SQL proceeds to subsequent phases before the recovery is totally complete.
+In the Redo phase, all the committed transactions present in the transaction log when the database was being backed up are rolled forward.
+In the Undo phase, all the uncommitted transactions in the transaction log while the database was being backed up are rolled back.
+If the database is being restored with NORECOVERY, the Undo phase is skipped.
+
+Unfortunately SQL Server does not show the progress during the Redo and Undo phases as it does in the Data Copy phase. So, depending upon the activity in the database at the time it was getting backed up will decide the overall total recovery time.
