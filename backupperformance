@@ -21,3 +21,79 @@ Backup device performance
 Instant file initialization
 Data compression
 Backup compression
+
+
+/*
+BACKUP DATABASE [StackOverflow2010] TO  
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak1', 
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak2',
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak3',
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak4',
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak5',
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak6',
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak7'
+WITH NOFORMAT, NOINIT,  
+NAME = N'StackOverflow2010-Full Database Backup', 
+SKIP, NOREWIND, NOUNLOAD, COMPRESSION,  STATS = 10, CHECKSUM
+GO
+/*
+
+/*
+ 
+/*
+USE [master]
+RESTORE DATABASE [StackOverflow2010] 
+FROM  
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak1',  
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak2',  
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak3',  
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak4',  
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak5',  
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak6',  
+DISK = N'G:\Backup stackoverflow2010\stackoverflow2010_bak7' 
+WITH  FILE = 1,  MOVE N'StackOverflow2010' 
+TO N'G:\StackOverflow2010.mdf',  NOUNLOAD,  STATS = 5
+,maxtransfersize = 4194302, buffercount = 400
+---
+--Drop database stackoverflow2010
+USE [master]
+Restore database [StackOverflow2010]
+FROM 
+DISK = N'E:\FullBackup\stackoverflow2010'
+WITH  FILE = 1,  MOVE N'StackOverflow2010' 
+TO N'G:\StackOverflow2010.mdf',  NOUNLOAD,  STATS = 5
+
+,maxtransfersize = 4194302, buffercount = 400
+
+---
+BACKUP DATABASE [StackOverflow2010] 
+TO  DISK = N'E:\FullBackup\stackoverflow2010' WITH NOFORMAT, NOINIT,  
+NAME = N'StackOverflow2010-Full Database Backup', 
+SKIP, NOREWIND, NOUNLOAD,  STATS = 10
+,maxtransfersize = 4194302, buffercount = 400
+GO
+
+ --BABACKUP PROGRESS
+SELECT 
+   session_id as SPID, command, a.text AS Query, start_time, percent_complete,
+   dateadd(second,estimated_completion_time/1000, getdate()) as estimated_completion_time
+FROM sys.dm_exec_requests r 
+   CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) a 
+WHERE r.command in ('BACKUP DATABASE','RESTORE DATABASE') 
+
+/*
+
+--Disable trace flags to catch more info
+DBCC TRACEON (3213, -1)
+DBCC TRACEON (3605, -1)
+--Disable trace flags
+DBCC TRACEOFF (3213, -1)
+DBCC TRACEOFF (3605, -1)
+---check traceflag status
+DBCC TRACESTATUS
+
+--ERRORLOG REGARDING THE RESTORE
+declare @dtfromdate datetime = dateadd(hour, -1, getdate()),
+		@dttodate datetime = getdate()
+exec xp_readerrorlog 0,1,null,null, @dtfromdate, @dttodate
+/*
