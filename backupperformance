@@ -1,3 +1,5 @@
+https://www.mssqltips.com/sqlservertip/4935/optimize-sql-server-database-restore-performance/
+
 --BABACKUP PROGRESS
 SELECT 
    session_id as SPID, command, a.text AS Query, start_time, percent_complete,
@@ -10,3 +12,12 @@ WHERE r.command in ('BACKUP DATABASE','RESTORE DATABASE')
 declare @dtfromdate datetime = dateadd(hour, -1, getdate()),
 		@dttodate datetime = getdate()
 exec xp_readerrorlog 0,1,null,null, @dtfromdate, @dttodate
+
+
+To even get faster backups and restores, you could also look at these things:
+
+Parallel backup operations
+Backup device performance
+Instant file initialization
+Data compression
+Backup compression
