@@ -1,0 +1,70 @@
+Restore from Backup Stored in Azure File Share 
+
+The best approach to restore databases from backup files stored in Azure File Share is using 2-steps process:
+1)	Copy backup files to a local drive using AzCopy utility.
+2)	Restore database from local backup.
+For small files, you may use File Explorer, robocopy or Windows backup commands to copy file(s) from Azure file share to the local drive.
+ 
+ 
+Using AzCopy to copy backup files to local drive
+
+AzCopy is the fastest way to copy large files from Azure file share to the local drive. As of now, the only access to File Share through AzCopy is by using SAS token. Also, only the latest versions (V10 and after) of this tool supports copying to/from file share. Download the AzCopy V10 executable file to any folder on target server. AzCopy V10 is just an executable file, so there's nothing to install. 
+AzCopy can be downloaded from Copy or move data to Azure Storage by using AzCopy v10 | Microsoft Docs 
+Choose option for windows 32-bit (zip)
+ 
+To create SAS token: 
+1)	request JIT Owner access in DevOps Catalog to required subscription
+2)	In Windows ISE PowerShell window on your local computer (not in target SQL Server replica !!) execute the following PowerShell script. Make sure to put proper name for subscription, Resource Group name and Storage Account
+Import-Module Az.Compute
+Import-Module Az.Accounts
+Import-Module Az.Storage
+import-Module Az.Resources
+Enable-AzureRmAlias
+
+Connect-AzAccount 
+
+# values for variables below should be available in Catalog
+$subscriptionName='GZ-NP-IT-40-ASDBILLING'  # put proper name
+$resourceGroupName='GZE-BILDUK-ED1-RGP-001' # put proper name  
+$storageAccountName= 'gzebilduked1sqbkpsto' # put proper name
+Select-azurermsubscription -subscriptionname $subscriptionName 
+
+# Get the access keys for the ARM storage account  
+$accountKeys = Get-AzureRmStorageAccountKey -ResourceGroupName $resourceGroupName -Name $storageAccountName  
+
+# Create a new storage account context using an ARM storage account  
+$storageContext = New-AzStorageContext -StorageAccountName $storageAccountName -StorageAccountKey $accountKeys[0].Value
+
+$StartDate = [DateTime] "01/01/2015 00:00 AM"
+$SharedAccessStartTime = $($StartDate.ToUniversalTime())  
+$SharedAccessExpiryTime = $((get-date).ToUniversalTime().AddYears(99))
+
+$sas = New-AzStorageAccountSASToken -Service File -ResourceType Service,Container,Object -Permission racwdlup -Context $storageContext -ExpiryTime $SharedAccessExpiryTime
+Write-Host 'Shared Access Signature = '$($sas.Substring(1))''
+ 
+ 
+3)	Use generated SAS token in AzCopy command
+ 
+Samples of Using AzCopy for Azure File Shares
+1)	Download files with wildcard from File Share to local drive 
+Syntax:
+azcopy copy 'https://<storage-account-name>.file.core.windows.net/<file-share-or-directory-name><SAS-token>' '<local-directory-path>' --include-path <semicolon-separated-file-list>
+Example:
+azcopy copy "https://gxxxxto.file.core.windows.net/file-full-bkup/*?sv=xxxxxxxxxxxxxxxxxxxxkXtBZlbo%3D&se=2120-03-23T16%3A02%3A06Z&srt=sco&ss=f&sp=racupwdl" "I:\SQL_SysDbBKP\Full" --include-pattern "Bxxx_202xx323_103512_GxxxxSQ1*.BAK"
+
+
+Notes.
+a)	Make sure * is present between file share name and ?
+b)	If CMD is used to run AzCopy, double quotes must be used for Source URL, target local folder and file pattern
+c)	If Windows PowerShell ISE is used to run AzCopy, single copy must be used for Source URL, target local folder and file pattern
+d)	Make sure to have at least 1 space between source, destination, and option sections
+
+
+2)	Copy files from local drive to File Share
+
+Syntax:
+
+azcopy copy '<local-directory-path>' 'https://<storage-account-name>.file.core.windows.net/<file-share-or-directory-name><SAS-token>' --include-pattern <semicolon-separated-file-list-with-wildcard-characters>
+
+Example:
+azcopy copy "I:\SQL_SysDbBKP\Full\*" "https://gxxxxxto.file.core.windows.net/file-full-bkup?sv=xxxxxxxxsig=1qA%2Fj9wK52%2BUxxxxxxxxxx2FseHXFkXtBZlbo%3D&sexxxxxxxxxxxA02%3A06Z&srt=sco&ss=f&sp=racupwdl" --include-pattern "Bxxxxg_*.trn"
