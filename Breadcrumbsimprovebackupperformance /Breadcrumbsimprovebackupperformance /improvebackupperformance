@@ -1,0 +1,15 @@
+Notes from Sean https://www.youtube.com/watch?v=yerYRopY-es
+-- there is a limit in striping 64. After 64 it will through an error. 
+-- Big rules for backup tuning 
+A) Go bigger go home: 2TB , 1500 buffer - 2000 buffer count and 10-15 stripes.
+
+e.g. 2TB can be backedup in 20 minutes with 20 stripes and 2000 buffer. is this good, if this is achievable? It depends.Consider users. Backups can take higher CPU, Memory. you can lock users. 
+
+
+situations to FULLY TUNE BACKUP!
+- downtime for prod. take off the server. 
+How about Log backups?
+Can we apply stripping to log backups? WE CAN STRIPE logs but not neccesary. 
+
+Assume you are taking a full backup and there is a log backup job running at the same time. the full backup runs for 6 hour..this means since full backup include the active portion of the load so the LOG backup will backup the logs but will not truncate them.
+So it will grow exponentially. 
